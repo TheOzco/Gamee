@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بینگوی دونفره آنلاین</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.3.2/peerjs.min.js"></script>
+<style>
+  :root{
+    --board:#16302A;
+    --board-dark:#0F231E;
+    --plate:#F3E9D2;
+    --plate-shadow:#d9cba3;
+    --brass:#C9A227;
+    --p1:#C1440E;
+    --p2:#2B4570;
+    --chalk:#F5F1E6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:radial-gradient(ellipse at top, #1c3a32 0%, var(--board) 45%, var(--board-dark) 100%);
+    font-family:'Vazirmatn', sans-serif;
+    color:var(--chalk);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 12px 60px;
+  }
+  h1{
+    font-weight:900;
+    font-size:clamp(22px,4vw,32px);
+    margin:6px 0 2px;
+    color:var(--brass);
+    text-shadow:0 2px 0 rgba(0,0,0,.3);
+  }
+  .subtitle{ color:#cdd8d1; font-size:14px; margin-bottom:22px; opacity:.85; text-align:center; max-width:480px;}
+
+  .card{
+    background:var(--plate);
+    color:var(--board-dark);
+    border-radius:16px;
+    padding:28px;
+    width:100%;
+    max-width:420px;
+    box-shadow:0 14px 40px rgba(0,0,0,.4);
+  }
+  .card p{ margin:0 0 16px; font-size:13.5px; color:#5b5347; line-height:1.9;}
+  .tabbar{ display:flex; gap:8px; margin-bottom:20px; }
+  .tabbar button{
+    flex:1; padding:9px 0; border:none; border-radius:999px;
+    background:rgba(0,0,0,.08); color:var(--board-dark); font-family:inherit;
+    font-weight:700; font-size:13.5px; cursor:pointer;
+  }
+  .tabbar button.active{ background:var(--brass); color:#fff; }
+  .field{
+    width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid #d9cba3;
+    font-family:inherit; font-size:15px; margin-bottom:12px; background:#fffdf6;
+    text-align:center; letter-spacing:1px;
+  }
+  .primary-btn{
+    width:100%; padding:12px 0; border:none; border-radius:10px;
+    background:var(--board); color:var(--chalk); font-family:inherit;
+    font-weight:700; font-size:15px; cursor:pointer;
+  }
+  .primary-btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .share-box{
+    background:#fffdf6; border:1.5px dashed #c9a227; border-radius:10px;
+    padding:14px; margin-bottom:14px; word-break:break-all; font-size:13px;
+  }
+  .copy-btn{
+    margin-top:8px; padding:8px 14px; border:none; border-radius:8px;
+    background:var(--brass); color:#fff; font-family:inherit; font-weight:700;
+    font-size:13px; cursor:pointer;
+  }
+  .waiting-line{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:#5b5347; }
+  .spinner{
+    width:14px;height:14px;border-radius:50%;
+    border:2px solid #d9cba3; border-top-color:var(--brass);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .error-text{ color:#a33; font-size:13px; margin-top:-4px; margin-bottom:10px; min-height:16px; }
+
+  #gameScreen{ display:none; flex-direction:column; align-items:center; width:100%; }
+  .status{
+    display:flex; align-items:center; gap:14px;
+    background:rgba(0,0,0,.25); border:1px solid rgba(201,162,39,.35);
+    padding:10px 22px; border-radius:999px; margin-bottom:8px; font-weight:600;
+  }
+  .status .dot{ width:12px;height:12px;border-radius:50%; box-shadow:0 0 8px currentColor; }
+  .turn-p1 .dot{background:var(--p1);color:var(--p1);}
+  .turn-p2 .dot{background:var(--p2);color:var(--p2);}
+  .me-tag{ font-size:12px; color:#9fb0a8; margin-bottom:10px; }
+
+  .scoreboard{
+    display:flex; gap:10px; margin-bottom:18px;
+  }
+  .score-chip{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(0,0,0,.25); border-radius:12px; padding:8px 14px;
+  }
+  .score-chip .label{ font-size:12.5px; font-weight:700; }
+  .score-chip.p1 .label{ color:var(--p1); }
+  .score-chip.p2 .label{ color:var(--p2); }
+  .score-chip .dots{ display:flex; gap:4px; }
+  .score-chip .dots span{ width:11px;height:11px;border-radius:50%; border:2px solid var(--brass); }
+  .score-chip.p1 .dots span.filled{ background:var(--p1); border-color:var(--p1); }
+  .score-chip.p2 .dots span.filled{ background:var(--p2); border-color:var(--p2); }
+  .score-chip.me{ box-shadow:0 0 0 2px var(--brass) inset; }
+
+  .player-tag{ font-weight:700; font-size:16px; margin-bottom:10px; padding:5px 16px; border-radius:8px; background:var(--plate); color:var(--board-dark); }
+  .player-tag.p1{ box-shadow:0 0 0 2px var(--p1) inset; }
+  .player-tag.p2{ box-shadow:0 0 0 2px var(--p2) inset; }
+
+  .bingo-count{ display:flex; gap:6px; margin-bottom:10px; }
+  .bingo-count span{ width:14px;height:14px;border-radius:50%; border:2px solid var(--brass); }
+  .bingo-count span.filled.p1{ background:var(--p1); border-color:var(--p1); }
+  .bingo-count span.filled.p2{ background:var(--p2); border-color:var(--p2); }
+
+  .grid{
+    background:var(--plate);
+    box-shadow:0 10px 0 var(--plate-shadow), 0 14px 24px rgba(0,0,0,.45);
+    border-radius:10px; padding:10px;
+    display:grid; grid-template-columns:repeat(5,1fr); gap:6px;
+  }
+  .cell{
+    position:relative; width:52px;height:52px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700; font-size:16px; color:var(--board-dark);
+    background:#fffdf6; border-radius:6px; user-select:none;
+  }
+  .cell.marked{ color:#8a8375; }
+  .cell.clickable{ cursor:pointer; transition:transform .12s, background .12s; }
+  .cell.clickable:hover{ transform:translateY(-2px); background:#ffe9b0; }
+  .cell.disabled{ opacity:.55; cursor:not-allowed; }
+  .mark-p1, .mark-p2{
+    position:absolute; inset:2px; border-radius:50%;
+    border:3px solid var(--p1); transform:rotate(-8deg); animation:pop .25s ease-out;
+  }
+  .mark-p2{ border-color:var(--p2); transform:rotate(6deg); }
+  @keyframes pop{ from{ transform:scale(.4) rotate(0deg); opacity:0; } }
+  .cell.won-line{ background:linear-gradient(135deg,#ffe9b0,#fff3d6); }
+
+  .opp-note{ margin-top:10px; font-size:13px; color:#9fb0a8; text-align:center; max-width:280px; }
+  .conn-note{ margin-top:6px; font-size:12px; color:#e0b0a0; text-align:center; }
+
+  .caller{ margin-top:28px; width:100%; max-width:420px; background:rgba(0,0,0,.22); border:1px solid rgba(201,162,39,.3); border-radius:14px; padding:16px; }
+  .caller h3{ margin:0 0 10px; font-size:14px; color:var(--brass); font-weight:700; }
+  .numpad{ display:grid; grid-template-columns:repeat(auto-fill, minmax(48px,1fr)); gap:8px; }
+  .num-btn{
+    padding:10px 0; border-radius:8px; border:none; background:var(--chalk);
+    color:var(--board-dark); font-weight:700; font-size:15px; cursor:pointer;
+    transition:transform .12s, background .12s; font-family:inherit;
+  }
+  .num-btn:hover:not(:disabled){ transform:translateY(-2px); background:var(--brass); }
+  .num-btn:disabled{ background:rgba(255,255,255,.08); color:rgba(255,255,255,.25); cursor:not-allowed; }
+
+  .controls{ margin-top:24px; display:flex; gap:12px; }
+  .btn{
+    padding:10px 22px; border-radius:999px; border:1px solid var(--brass);
+    background:transparent; color:var(--brass); font-family:inherit;
+    font-weight:700; font-size:14px; cursor:pointer; transition:background .15s, color .15s;
+  }
+  .btn:hover{ background:var(--brass); color:var(--board-dark); }
+
+  .overlay{ position:fixed; inset:0; background:rgba(10,20,17,.85); display:none; align-items:center; justify-content:center; z-index:10; backdrop-filter:blur(2px); }
+  .overlay.show{ display:flex; }
+  .win-card{ background:var(--plate); color:var(--board-dark); padding:36px 48px; border-radius:16px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5); max-width:90vw; }
+  .win-card h2{ margin:0 0 8px; font-size:26px; }
+  .win-card p{ margin:0 0 20px; color:#5b5347; }
+
+  @media (max-width:520px){ .cell{ width:15vw; height:15vw; font-size:3.6vw; } }
+</style>
+</head>
+<body>
+
+  <h1>🎯 بینگوی دونفره آنلاین</h1>
+  <div class="subtitle">هر بازیکن روی گوشی خودش بازی می‌کنه و فقط صفحه‌ی خودش رو می‌بینه — اتصال مستقیم بین دو گوشیه، بدون سرور واسط</div>
+
+  <div class="card" id="lobbyCard">
+    <div class="tabbar">
+      <button id="tabHost" class="active">ساخت بازی جدید</button>
+      <button id="tabJoin">پیوستن به بازی</button>
+    </div>
+
+    <div id="hostPane">
+      <p>یه اتاق بساز و لینکش رو برای حریفت بفرست.</p>
+      <button class="primary-btn" id="createBtn">ساخت بازی</button>
+      <div id="hostWaiting" style="display:none; margin-top:16px;">
+        <div class="share-box" id="shareLink"></div>
+        <button class="copy-btn" id="copyBtn">کپی لینک</button>
+        <div style="height:14px;"></div>
+        <div class="waiting-line"><span class="spinner"></span> منتظر پیوستن حریف...</div>
+      </div>
+      <div class="error-text" id="hostError"></div>
+    </div>
+
+    <div id="joinPane" style="display:none;">
+      <p>کد یا لینکی که حریفت فرستاده رو اینجا بچسبون.</p>
+      <input class="field" id="joinInput" placeholder="کد اتاق یا لینک">
+      <div class="error-text" id="joinError"></div>
+      <button class="primary-btn" id="joinBtn">پیوستن</button>
+    </div>
+  </div>
+
+  <div id="gameScreen">
+    <div class="status" id="statusBar">
+      <span class="dot"></span>
+      <span id="statusText">در حال بارگذاری...</span>
+    </div>
+    <div class="me-tag" id="meTag"></div>
+
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <div class="board-wrap" id="myWrap">
+      <div class="player-tag" id="myTag">صفحه من</div>
+      <div class="grid" id="myGrid"></div>
+    </div>
+
+    <div class="opp-note">صفحه‌ی حریف پیش خودشه؛ اینجا فقط تعداد بینگوهاش رو می‌بینی.</div>
+    <div class="conn-note" id="connNote"></div>
+
+    <div class="controls">
+      <button class="btn" id="restartBtn">بازی جدید</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="win-card">
+      <h2 id="winTitle">🎉 بازیکن ۱ برنده شد!</h2>
+      <p>با ۳ بینگو، برنده این دوره شد.</p>
+      <button class="btn" id="playAgainBtn">بازی جدید بساز</button>
+    </div>
+  </div>
+
+<script>
+const WIN_TARGET = 3;
+let peer = null;
+let conn = null;
+let myRole = null; // 1 = host, 2 = guest
+let state = null;
+
+function lineIndices(){
+  const lines = [];
+  for(let r=0;r<5;r++){ const l=[]; for(let c=0;c<5;c++) l.push(r*5+c); lines.push(l); }
+  for(let c=0;c<5;c++){ const l=[]; for(let r=0;r<5;r++) l.push(r*5+c); lines.push(l); }
+  lines.push([0,6,12,18,24]);
+  lines.push([4,8,12,16,20]);
+  return lines;
+}
+const LINES = lineIndices();
+
+function shuffle(a){
+  a = a.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function genNumbers(){
+  const pool=[];
+  for(let i=11;i<11+25;i++) pool.push(i);
+  return pool;
+}
+function freshState(){
+  const numbers = genNumbers();
+  return {
+    numbers,
+    arr1: shuffle(numbers),
+    arr2: shuffle(numbers),
+    marked: [],
+    awarded1: [],
+    awarded2: [],
+    bingo1: 0,
+    bingo2: 0,
+    turn: 1,
+    gameOver: false,
+    winner: null
+  };
+}
+
+/* ---------- Lobby tabs ---------- */
+const tabHost = document.getElementById('tabHost');
+const tabJoin = document.getElementById('tabJoin');
+const hostPane = document.getElementById('hostPane');
+const joinPane = document.getElementById('joinPane');
+tabHost.onclick = () => { tabHost.classList.add('active'); tabJoin.classList.remove('active'); hostPane.style.display='block'; joinPane.style.display='none'; };
+tabJoin.onclick = () => { tabJoin.classList.add('active'); tabHost.classList.remove('active'); joinPane.style.display='block'; hostPane.style.display='none'; };
+
+/* ---------- Hosting ---------- */
+document.getElementById('createBtn').onclick = () => {
+  const btn = document.getElementById('createBtn');
+  const errEl = document.getElementById('hostError');
+  errEl.textContent = '';
+  btn.disabled = true; btn.textContent = 'در حال ساخت...';
+
+  peer = new Peer();
+
+  peer.on('open', id => {
+    const link = location.origin + location.pathname + '?peer=' + id;
+    document.getElementById('shareLink').textContent = link;
+    document.getElementById('hostWaiting').style.display = 'block';
+    btn.style.display = 'none';
+  });
+
+  peer.on('connection', c => {
+    conn = c;
+    myRole = 1;
+    wireConnection();
+    conn.on('open', () => {
+      state = freshState();
+      conn.send({ type:'init', state });
+      startGame();
+    });
+  });
+
+  peer.on('error', err => {
+    errEl.textContent = 'اتصال ممکن نشد (' + err.type + '). دوباره امتحان کن.';
+    btn.disabled = false; btn.textContent = 'ساخت بازی';
+  });
+};
+
+document.getElementById('copyBtn').onclick = () => {
+  const text = document.getElementById('shareLink').textContent;
+  navigator.clipboard?.writeText(text);
+  const b = document.getElementById('copyBtn');
+  b.textContent = 'کپی شد ✓';
+  setTimeout(()=> b.textContent = 'کپی لینک', 1500);
+};
+
+/* ---------- Joining ---------- */
+function extractPeerId(raw){
+  const m = raw.match(/peer=([^&]+)/);
+  return m ? m[1] : raw.trim();
+}
+
+function joinRoom(hostId){
+  const errEl = document.getElementById('joinError') || document.getElementById('hostError');
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(hostId, { reliable:true });
+    myRole = 2;
+    wireConnection();
+    conn.on('open', () => {
+      document.getElementById('lobbyCard').innerHTML = '<div class="waiting-line"><span class="spinner"></span> در حال دریافت بازی...</div>';
+    });
+  });
+  peer.on('error', err => {
+    if(errEl) errEl.textContent = 'وصل نشد (' + err.type + '). لینک یا کد رو چک کن.';
+    document.getElementById('joinBtn').disabled = false;
+    document.getElementById('joinBtn').textContent = 'پیوستن';
+  });
+}
+
+document.getElementById('joinBtn').onclick = () => {
+  const raw = document.getElementById('joinInput').value.trim();
+  const errEl = document.getElementById('joinError');
+  errEl.textContent = '';
+  if(!raw){ errEl.textContent = 'یه کد یا لینک وارد کن.'; return; }
+  document.getElementById('joinBtn').disabled = true;
+  document.getElementById('joinBtn').textContent = 'در حال اتصال...';
+  joinRoom(extractPeerId(raw));
+};
+
+/* ---------- Auto-join from URL ---------- */
+(function autoJoinFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const hostId = params.get('peer');
+  if(hostId){
+    document.getElementById('lobbyCard').innerHTML = '<div class="waiting-line"><span class="spinner"></span> در حال اتصال به بازی...</div>';
+    joinRoom(hostId);
+  }
+})();
+
+/* ---------- Shared connection wiring ---------- */
+function wireConnection(){
+  conn.on('data', handleData);
+  conn.on('close', () => {
+    document.getElementById('connNote').textContent = '⚠️ ارتباط با حریف قطع شد.';
+  });
+  conn.on('error', () => {
+    document.getElementById('connNote').textContent = '⚠️ مشکلی تو ارتباط پیش اومد.';
+  });
+}
+
+function handleData(data){
+  if(data.type === 'init'){
+    state = data.state;
+    startGame();
+  } else if(data.type === 'call'){
+    if(state && !state.marked.includes(data.num)){
+      applyCall(data.num);
+      render();
+    }
+  }
+}
+
+/* ---------- Game ---------- */
+function startGame(){
+  document.getElementById('lobbyCard').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'flex';
+  document.getElementById('meTag').textContent = 'تو بازیکن ' + (myRole===1?'۱':'۲') + ' هستی';
+  document.getElementById('myTag').className = 'player-tag ' + (myRole===1?'p1':'p2');
+  document.getElementById('myTag').textContent = 'بازیکن ' + (myRole===1?'۱':'۲') + ' (تو)';
+  render();
+}
+
+function myArr(){ return myRole===1 ? state.arr1 : state.arr2; }
+function myAwarded(){ return myRole===1 ? state.awarded1 : state.awarded2; }
+function myBingo(){ return myRole===1 ? state.bingo1 : state.bingo2; }
+
+function render(){
+  if(!state) return;
+  renderGrid();
+  renderScoreboard();
+  renderStatus();
+  if(state.gameOver){
+    document.getElementById('winTitle').textContent = '🎉 بازیکن ' + (state.winner===1?'۱':'۲') + ' برنده شد!' + (state.winner===myRole ? ' (خودت!)' : '');
+    document.getElementById('overlay').classList.add('show');
+  } else {
+    document.getElementById('overlay').classList.remove('show');
+  }
+}
+
+function renderGrid(){
+  const el = document.getElementById('myGrid');
+  el.innerHTML = '';
+  const arr = myArr();
+  const marked = new Set(state.marked);
+  const won = new Set(myAwarded());
+  const wonCells = new Set();
+  won.forEach(li => LINES[li].forEach(idx => wonCells.add(idx)));
+  const markClass = myRole===1 ? 'mark-p1' : 'mark-p2';
+  const myTurn = state.turn === myRole && !state.gameOver;
+  arr.forEach((num, idx) => {
+    const cell = document.createElement('div');
+    const isMarked = marked.has(num);
+    const canClick = myTurn && !isMarked;
+    cell.className = 'cell'
+      + (isMarked ? ' marked' : '')
+      + (wonCells.has(idx) ? ' won-line' : '')
+      + (canClick ? ' clickable' : '')
+      + (!isMarked && !myTurn ? ' disabled' : '');
+    cell.textContent = num;
+    if(isMarked){
+      const mark = document.createElement('div');
+      mark.className = markClass;
+      cell.appendChild(mark);
+    }
+    if(canClick){
+      cell.onclick = () => callNumber(num);
+    }
+    el.appendChild(cell);
+  });
+}
+
+function renderScoreboard(){
+  const el = document.getElementById('scoreboard');
+  el.innerHTML = '';
+  [1,2].forEach(role => {
+    const chip = document.createElement('div');
+    chip.className = 'score-chip ' + (role===1?'p1':'p2') + (role===myRole?' me':'');
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = 'بازیکن ' + (role===1?'۱':'۲') + (role===myRole?' (تو)':'');
+    const dots = document.createElement('div');
+    dots.className = 'dots';
+    const count = role===1 ? state.bingo1 : state.bingo2;
+    for(let i=0;i<WIN_TARGET;i++){
+      const d = document.createElement('span');
+      if(i < count) d.classList.add('filled');
+      dots.appendChild(d);
+    }
+    chip.appendChild(label);
+    chip.appendChild(dots);
+    el.appendChild(chip);
+  });
+}
+
+function renderStatus(){
+  const bar = document.getElementById('statusBar');
+  const text = document.getElementById('statusText');
+  bar.className = 'status ' + (state.turn===1 ? 'turn-p1' : 'turn-p2');
+  if(state.gameOver){
+    text.textContent = 'بازی تمام شد';
+  } else if(state.turn === myRole){
+    text.textContent = 'نوبت توئه! یه عدد رو تو صفحه‌ات لمس کن';
+  } else {
+    text.textContent = 'منتظر بازیکن ' + (state.turn===1?'۱':'۲') + '...';
+  }
+}
+
+function checkLines(arr, awardedArr){
+  const awardedSet = new Set(awardedArr);
+  const markedSet = new Set(state.marked);
+  let newlyWon = 0;
+  LINES.forEach((line, li) => {
+    if(awardedSet.has(li)) return;
+    const complete = line.every(idx => markedSet.has(arr[idx]));
+    if(complete){ awardedSet.add(li); newlyWon++; }
+  });
+  return { newlyWon, awarded: Array.from(awardedSet) };
+}
+
+function applyCall(num){
+  state.marked.push(num);
+  const r1 = checkLines(state.arr1, state.awarded1);
+  const r2 = checkLines(state.arr2, state.awarded2);
+  state.awarded1 = r1.awarded;
+  state.awarded2 = r2.awarded;
+  state.bingo1 += r1.newlyWon;
+  state.bingo2 += r2.newlyWon;
+  if(state.bingo1 >= WIN_TARGET || state.bingo2 >= WIN_TARGET){
+    state.gameOver = true;
+    state.winner = state.bingo1 >= WIN_TARGET ? 1 : 2;
+  } else {
+    state.turn = state.turn === 1 ? 2 : 1;
+  }
+}
+
+function callNumber(num){
+  if(!state || state.gameOver || state.turn !== myRole) return;
+  if(state.marked.includes(num)) return;
+  applyCall(num);
+  render();
+  conn.send({ type:'call', num });
+}
+
+document.getElementById('restartBtn').onclick = () => location.href = location.pathname;
+document.getElementById('playAgainBtn').onclick = () => location.href = location.pathname;
+</script>
+</body>
+</html>
